@@ -1,0 +1,79 @@
+apply plugin: 'java'
+
+
+compileJava {
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.+'
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/java']
+        }
+        resources {
+            srcDirs = ['src/resources']
+        }
+    }
+
+    test {
+        java {
+            srcDirs = ['test/java']
+        }
+        resources {
+            srcDirs = ['test/resources']
+        }
+    }
+}
+
+task zipSources(dependsOn: 'formatSource', type: Zip) {
+    from('build/tmp/formattedSourceCode')
+    into('resources') {
+        from(findResourceSources())
+    }
+    from('README.TXT')
+}
+
+artifacts {
+    archives zipSources
+}
+
+FileCollection[] findJavaSources() {
+    Set<File> dirs = new HashSet<>()
+    project.sourceSets.each { s ->
+        s.allJava.getSrcDirs().each { File f ->
+
+            dirs.add(f)
+        }
+    }
+    return files{dirs}
+}
+
+FileCollection[] findResourceSources() {
+    Set<File> dirs = new HashSet<>()
+    project.sourceSets.each { s ->
+        s.resources.srcDirs.each { File f ->
+            dirs.add(f)
+        }
+    }
+    return files{dirs}
+}
+
+task copySourceCode(type: Copy) {
+    from {findJavaSources()}
+    into 'build/tmp/formattedSourceCode'
+}
+
+task formatSource(dependsOn: 'copySourceCode') << {
+    ProcessBuilder builder = new ProcessBuilder('astyle', '--style=ansi', '--indent=spaces=4', '--indent-cases', '--suffix=none', '--recursive', '--mode=java', 'build/tmp/formattedSourceCode/*.java')
+    Process process = builder.start()
+    process.waitFor()
+}
